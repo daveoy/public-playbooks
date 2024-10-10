@@ -5,10 +5,10 @@
     OTEL_EXPORTER_OTLP_ENDPOINT: "otlp:4317"
     OTEL_EXPORTER_OTLP_HEADERS: "authorization=Bearer {{ otlp_token }}"
     OTEL_SERVICE_NAME: test
-    ANSIBLE_OPENTELEMETRY_ENABLED: "true"
+    ANSIBLE_OPENTELEMETRY_ENABLED: true
   gather_facts: no
   vars:
-    otel_collector_url: "http://otlp:4318/v1/metrics"
+    otel_collector_address: "your-otel-collector:4317"  # gRPC port
     sample_metric:
       resource:
         attributes:
@@ -23,16 +23,60 @@
             instance_id: "i-1234567890abcdef0"
 
   tasks:
-    - name: Send sample metric to OTel Collector
-      uri:
-        url: "{{ otel_collector_url }}"
-        method: POST
-        headers:
-          Content-Type: application/json
-        body: "{{ sample_metric | to_json }}"
-        return_content: yes
+    - name: Install necessary Python packages
+      pip:
+        name:
+          - opentelemetry-sdk
+          - opentelemetry-proto
+          - opentelemetry-exporter-otlp
+          - grpcio
+        state: present
+
+    - name: Send sample metric using Python script
+      copy:
+        dest: /tmp/send_metrics.py
+        content: |
+          import sys
+          import grpc
+          from opentelemetry.proto.metrics.v1 import metrics_pb2, metrics_pb2_grpc
+          from opentelemetry.proto.common.v1 import common_pb2
+
+          def main():
+              otel_address = sys.argv[1]
+              metric = metrics_pb2.ExportMetricsServiceRequest(
+                  resource=common_pb2.Resource(
+                      attributes=[
+                          common_pb2.KeyValue(key='service', value=common_pb2.AnyValue(string_value='my_service')),
+                          common_pb2.KeyValue(key='version', value=common_pb2.AnyValue(string_value='1.0'))
+                      ]
+                  ),
+                  metrics=[
+                      metrics_pb2.Metric(
+                          name='cpu_usage',
+                          description='CPU usage percentage',
+                          unit='percent',
+                          double_data_points=[
+                              metrics_pb2.DoubleDataPoint(
+                                  value=float(sys.argv[2]),
+                                  labels={'instance_id': 'i-1234567890abcdef0'}
+                              )
+                          ]
+                      )
+                  ]
+              )
+
+              channel = grpc.insecure_channel(otel_address)
+              stub = metrics_pb2_grpc.MetricsServiceStub(channel)
+              response = stub.Export(metric)
+              print("Response from OTel Collector:", response)
+
+          if __name__ == "__main__":
+              main()
+
+    - name: Execute the Python script
+      command: python3 /tmp/send_metrics.py "{{ otel_collector_address }}" "{{ sample_metric.metrics[0].value }}"
       register: result
 
     - name: Display response from OTel Collector
       debug:
-        var: result.content
+        var: result.stdout
