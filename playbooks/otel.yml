@@ -3,12 +3,12 @@
   hosts: all
   environment: 
     OTEL_EXPORTER_OTLP_ENDPOINT: "otlp:4317"
-    OTEL_EXPORTER_OTLP_HEADERS: "authorization=Bearer {{ otlp_token }}"
+    OTEL_EXPORTER_OTLP_HEADERS: "authorization=Bearer 1234abcd"
     OTEL_SERVICE_NAME: test
     ANSIBLE_OPENTELEMETRY_ENABLED: true
   gather_facts: no
   vars:
-    otel_collector_address: "your-otel-collector:4317"  # gRPC port
+    otel_collector_address: "otlp:4317"  # gRPC port
     sample_metric:
       resource:
         attributes:
@@ -31,6 +31,11 @@
           - opentelemetry-exporter-otlp
           - grpcio
         state: present
+      register: inst
+
+    - name: output inst.stdout
+      debug:
+        var: inst.stdout
 
     - name: Send sample metric using Python script
       copy:
