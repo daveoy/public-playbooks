@@ -9,6 +9,7 @@
           - opentelemetry-sdk
           - opentelemetry-proto
           - opentelemetry-exporter-otlp
+          - grpc
         state: present
 
     - name: Send sample metric using Python script
