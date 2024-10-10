@@ -1,6 +1,11 @@
 ---
 - name: Send Metrics to OpenTelemetry Collector
   hosts: all
+  environment: 
+    OTEL_EXPORTER_OTLP_ENDPOINT: "otlp:4317"
+    OTEL_EXPORTER_OTLP_HEADERS: "authorization=Bearer {{ otlp_token }}"
+    OTEL_SERVICE_NAME: test
+    ANSIBLE_OPENTELEMETRY_ENABLED: "true"
   gather_facts: no
   vars:
     otel_collector_url: "http://otlp:4318/v1/metrics"
@@ -10,12 +15,12 @@
           service: "my_service"
           version: "1.0"
       metrics:
-        - name: "dy_test"
-          description: "test"
+        - name: "cpu_usage"
+          description: "CPU usage percentage"
           unit: "percent"
           value: 75
           attributes:
-            dy: "test"
+            instance_id: "i-1234567890abcdef0"
 
   tasks:
     - name: Send sample metric to OTel Collector
