@@ -1,21 +1,7 @@
 ---
 - name: Send Metrics to OpenTelemetry Collector via gRPC
-  hosts: localhost
+  hosts: all
   gather_facts: no
-  vars:
-    sample_metric:
-      resource:
-        attributes:
-          service: "my_service"
-          version: "1.0"
-      metrics:
-        - name: "cpu_usage"
-          description: "CPU usage percentage"
-          unit: "percent"
-          value: 75
-          attributes:
-            instance_id: "i-1234567890abcdef0"
-
   tasks:
     - name: Install necessary Python packages
       pip:
@@ -65,12 +51,9 @@
 
           if __name__ == "__main__":
               main()
-      args:
-        - "{{ otel_collector_address }}"
-        - "{{ sample_metric.metrics[0].value }}"
 
     - name: Execute the Python script
-      command: python3 /tmp/send_metrics.py "{{ otel_collector_address }}" "{{ sample_metric.metrics[0].value }}"
+      command: python3 /tmp/send_metrics.py "otlp:4317" "666"
       register: result
 
     - name: Display response from OTel Collector
